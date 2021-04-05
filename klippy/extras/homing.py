@@ -105,7 +105,15 @@ class HomingMove:
                     kin_spos[sname] = cpos + (epos - spos) * s.get_step_dist()
             endpos = list(kin.calc_position(kin_spos))[:3] + movepos[3:]
         else:
-            trigpos = endpos = movepos
+            trigpos = movepos
+            self.toolhead.set_position(movepos)
+            # XXX - only calc new position if there is overshoot
+            for s, es, name, spos, cpos, epos, tpos in self.end_mcu_pos:
+                sname = s.get_name()
+                if sname in kin_spos:
+                    npos = s.get_commanded_position()
+                    kin_spos[sname] = npos + (epos - tpos) * s.get_step_dist()
+            endpos = list(kin.calc_position(kin_spos))[:3] + movepos[3:]
         self.toolhead.set_position(endpos)
         # Signal homing/probing move complete
         try:
@@ -181,6 +189,7 @@ class Homing:
         # Signal home operation complete
         self.toolhead.flush_step_generation()
         kin = self.toolhead.get_kinematics()
+        # XXX - endstop_phases need update to use trigger pos
         kin_spos = {s.get_name(): s.get_commanded_position()
                     for s in kin.get_steppers()}
         self.kin_spos = dict(kin_spos)
